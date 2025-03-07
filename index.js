@@ -1,23 +1,20 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import chokidar from "chokidar";
 //
+let USER_TARGET_DEST;
 const DOWNLOADS_FOLDER = path.join(
-  process.env.HOME || process.env.USERPROFILE,
+  os.homedir() || process.env.HOME || process.env.USERPROFILE,
   "Downloads",
 );
 const TARGET_FOLDER = path.join(
-  process.env.HOME || process.env.USERPROFILE,
+  os.homedir() || process.env.HOME || process.env.USERPROFILE,
   "Downloads",
-  "garage-cad",
+  "cad-files",
 );
-
-// ensure the target folder exists
-if (!fs.existsSync(TARGET_FOLDER)) {
-  fs.mkdirSync(TARGET_FOLDER, { recursive: true });
-}
 
 // parse args
 const argv = yargs(hideBin(process.argv))
@@ -27,19 +24,25 @@ const argv = yargs(hideBin(process.argv))
     description: "Destination folder relative to process path",
     default: TARGET_FOLDER,
   })
+  .strict()
   .help().argv;
 
-const destPath = argv._[0];
-const destinationFolder = argv.dest;
-console.log(destPath);
-console.log(destinationFolder);
+// FIXME: pick and add path from file name.
+if (!fs.existsSync(TARGET_FOLDER)) {
+  fs.mkdirSync(TARGET_FOLDER, { recursive: true });
+}
+if (argv.dest && !fs.existsSync(USER_TARGET_DEST)) {
+  USER_TARGET_DEST = path.join(TARGET_FOLDER, argv.dest);
+  fs.mkdirSync(USER_TARGET_DEST, { recursive: true });
+}
 
 const moveFile = (filePath) => {
   const fileName = path.basename(filePath);
   const ext = path.extname(fileName);
-  // Split name and version manually
+  // split name and version manually
   const parts = fileName.slice(0, -ext.length).split("-");
-  let baseName = parts.slice(0, -1).join("-"); // Everything except last part
+  // everything except last part
+  let baseName = parts.slice(0, -1).join("-");
   let lastPart = parts[parts.length - 1];
   let version = 1;
 
@@ -59,7 +62,7 @@ const moveFile = (filePath) => {
   do {
     versionString = String(version++).padStart(2, "0");
     newFileName = `${baseName}-${versionString}${ext}`;
-    targetPath = path.join(TARGET_FOLDER, newFileName);
+    targetPath = path.join(USER_TARGET_DEST || TARGET_FOLDER, newFileName);
   } while (fs.existsSync(targetPath));
 
   // move the file
